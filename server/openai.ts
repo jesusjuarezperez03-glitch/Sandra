@@ -137,6 +137,8 @@ function getFallbackResponse(message: string): string {
 
 export async function getChatbotResponse(message: string): Promise<string> {
   try {
+    console.log("🤖 Calling GPT-5 API with message:", message.substring(0, 50) + "...");
+    
     const response = await openai.chat.completions.create({
       model: "gpt-5",
       messages: [
@@ -152,18 +154,32 @@ export async function getChatbotResponse(message: string): Promise<string> {
       max_completion_tokens: 500,
     });
 
-    return response.choices[0].message.content || getFallbackResponse(message);
+    const aiResponse = response.choices[0].message.content || getFallbackResponse(message);
+    console.log("✅ GPT-5 responded successfully");
+    console.log("📊 Tokens used:", response.usage?.total_tokens || "unknown");
+    
+    return aiResponse;
   } catch (error: any) {
-    console.error("Error calling OpenAI:", error);
+    console.error("❌ Error calling OpenAI:", error.message || error);
+    console.error("📋 Error details:", {
+      status: error?.status,
+      code: error?.code,
+      type: error?.type
+    });
     
     // Use fallback responses when OpenAI is unavailable
     if (error?.status === 429 || error?.code === "insufficient_quota") {
-      console.log("OpenAI quota exceeded, using fallback response");
+      console.log("⚠️ OpenAI quota exceeded, using fallback response");
+      return getFallbackResponse(message);
+    }
+    
+    if (error?.status === 401) {
+      console.log("🔑 OpenAI authentication failed - check API key");
       return getFallbackResponse(message);
     }
     
     // For other errors, also use fallback
-    console.log("OpenAI error, using fallback response");
+    console.log("⚠️ OpenAI error, using fallback response");
     return getFallbackResponse(message);
   }
 }
